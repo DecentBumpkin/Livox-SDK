@@ -31,9 +31,9 @@
 
 
 /** Const varible ------------------------------------------------------------------------------- */
-/** User add broadcast code here */
+/** User add broadcast code here, this is the local list, the upper level list is generated from command line and parsed in main.cpp */
 static const char* local_broadcast_code_list[] = {
-  "000000000000001",
+  "1HDDGC500101371"
 };
 
 /** For callback use only */
@@ -46,10 +46,10 @@ LdsLidar::LdsLidar() {
   is_initialized_    = false;
 
   lidar_count_       = 0;
-  memset(broadcast_code_whitelist_, 0, sizeof(broadcast_code_whitelist_));
+  memset(broadcast_code_whitelist_, 0, sizeof(broadcast_code_whitelist_)); /* allocate maximum-possible space, kMaxLidarCount = 32 */
 
   memset(lidars_, 0, sizeof(lidars_));
-  for (uint32_t i=0; i<kMaxLidarCount; i++) {
+  for (uint32_t i=0; i<kMaxLidarCount; i++) { /*just initialized all spots to inactive */
     lidars_[i].handle = kMaxLidarCount; 
     /** Unallocated state */
     lidars_[i].connect_state = kConnectStateOff;
@@ -59,6 +59,7 @@ LdsLidar::LdsLidar() {
 LdsLidar::~LdsLidar() {
 }
 
+/* main top-level function, everything happens here, including such as callback registration and conversion */
 int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
 
   if (is_initialized_) {
@@ -73,22 +74,22 @@ int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
   }
 
   LivoxSdkVersion _sdkversion;
-  GetLivoxSdkVersion(&_sdkversion);
+  GetLivoxSdkVersion(&_sdkversion); /* just show the sdk version info */
   printf("Livox SDK version %d.%d.%d\n", _sdkversion.major, _sdkversion.minor, _sdkversion.patch);
 
-  SetBroadcastCallback(LdsLidar::OnDeviceBroadcast);
-  SetDeviceStateUpdateCallback(LdsLidar::OnDeviceChange);
+  SetBroadcastCallback(LdsLidar::OnDeviceBroadcast); /* @Wei: very important level 1 function, which registers callback on lidar data, etc. */
+  SetDeviceStateUpdateCallback(LdsLidar::OnDeviceChange); /* status change only, not as important as the above one */
 
   /** Add commandline input broadcast code */
   for (auto input_str : broadcast_code_strs) {
-    LdsLidar::AddBroadcastCodeToWhitelist(input_str.c_str());
+    LdsLidar::AddBroadcastCodeToWhitelist(input_str.c_str()); /* this is command line list parsed in main.cpp, increment whitelist_count_ */
   }
 
   /** Add local broadcast code */
-  LdsLidar::AddLocalBroadcastCode();
+  LdsLidar::AddLocalBroadcastCode(); /* this is the local list specified in this file, why failed ? this will call AddBroadcastCodeToWhiltelist */
 
-  if (whitelist_count_) {
-    LdsLidar::DisableAutoConnectMode();
+  if (whitelist_count_) { 
+    LdsLidar::DisableAutoConnectMode(); /* just a simple accessor to private members */
     printf("Disable auto connect mode!\n");
 
     printf("List all broadcast code in whiltelist:\n");
@@ -96,12 +97,12 @@ int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
       printf("%s\n", broadcast_code_whitelist_[i]);
     }
   } else {
-    LdsLidar::EnableAutoConnectMode();
+    LdsLidar::EnableAutoConnectMode(); /* just simple inline accessor function */
     printf("No broadcast code was added to whitelist, swith to automatic connection mode!\n");
   }
 
   /** Start livox sdk to receive lidar data */
-  if (!Start()) {
+  if (!Start()) { /* livox_sdk.h */
     Uninit();
     printf("Livox-SDK init fail!\n");
     return -1;
@@ -148,10 +149,20 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
 
   if (eth_packet) {
     lidar_this->data_recveive_count_[handle] ++;
-    if (lidar_this->data_recveive_count_[handle] % 100 == 0) {
+    if (lidar_this->data_recveive_count_[handle] % 1000 == 0) {
       printf("receive packet count %d %d\n", handle, lidar_this->data_recveive_count_[handle]);
 
-      /** Parsing the timestamp and the point cloud data. */
+      printf(" version: %u\n", data->version);
+      printf(" slot: %u\n", data->slot);
+      printf(" resverd : %u\n", data->id);
+      printf(" errorCode: %u\n", data->rsvd);
+      printf(" lidarID: %u\n", data->err_code);
+      printf(" dataType: %u\n", data->data_type);
+      printf(" timeStampType: %u\n",data->timestamp_type);
+      printf(" timeStamp: %lu\n", *(uint64_t *)(data->timestamp));
+      /*instead of a reinterpret_cast, here is static_case*/
+
+      /** Parsing the timestamp and the point cloud data. all types defined in livox_def.h  */
       uint64_t cur_timestamp = *((uint64_t *)(data->timestamp));
       if(data ->data_type == kCartesian) {
         LivoxRawPoint *p_point_data = (LivoxRawPoint *)data->data;
@@ -159,6 +170,7 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
         LivoxSpherPoint *p_point_data = (LivoxSpherPoint *)data->data;
       }else if ( data ->data_type == kExtendCartesian) {
         LivoxExtendRawPoint *p_point_data = (LivoxExtendRawPoint *)data->data;
+        printf("coords: %d %d %d\n",p_point_data->x, p_point_data->y, p_point_data->z); /* by default LivoxExtendRawPoint */
       }else if ( data ->data_type == kExtendSpherical) {
         LivoxExtendSpherPoint *p_point_data = (LivoxExtendSpherPoint *)data->data;
       }else if ( data ->data_type == kDualExtendCartesian) {
@@ -172,19 +184,21 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
   }
 }
 
-void LdsLidar::OnDeviceBroadcast(const BroadcastDeviceInfo *info) {
+/* @Wei: every device has a bd_code, in AutoConnect mode it will be connected always, while in whilelist mode it will not connect if not in whilelist */
+void LdsLidar::OnDeviceBroadcast(const BroadcastDeviceInfo *info) 
+{
   if (info == nullptr) {
     return;
   }
 
-  if (info->dev_type == kDeviceTypeHub) {
+  if (info->dev_type == kDeviceTypeHub) { /* connect to hub, nothing to do with default livox Horizon Lidar */
     printf("In lidar mode, couldn't connect a hub : %s\n", info->broadcast_code);
     return;
   }
 
   if (g_lidars->IsAutoConnectMode()) {
     printf("In automatic connection mode, will connect %s\n", info->broadcast_code);
-  } else {
+  } else { /* check whether this device is in the whilelist, if not then do not connect this device */
     if (!g_lidars->FindInWhitelist(info->broadcast_code)) {
       printf("Not in the whitelist, please add %s to if want to connect!\n",\
              info->broadcast_code);
@@ -196,8 +210,8 @@ void LdsLidar::OnDeviceBroadcast(const BroadcastDeviceInfo *info) {
   uint8_t handle = 0;
   result = AddLidarToConnect(info->broadcast_code, &handle);
   if (result == kStatusSuccess && handle < kMaxLidarCount) {
-    SetDataCallback(handle, LdsLidar::GetLidarDataCb, (void *)g_lidars);
-    LidarDevice* p_lidar = &(g_lidars->lidars_[handle]);
+    SetDataCallback(handle, LdsLidar::GetLidarDataCb, (void *)g_lidars); /* very important key function */
+    LidarDevice* p_lidar = &(g_lidars->lidars_[handle]); /* default initialized as below */
     p_lidar->handle = handle;
     p_lidar->connect_state = kConnectStateOff;
     p_lidar->config.enable_fan = true;
@@ -433,7 +447,7 @@ int LdsLidar::AddBroadcastCodeToWhitelist(const char* bd_code) {
     return -1;
   }
 
-  strcpy(broadcast_code_whitelist_[whitelist_count_], bd_code);
+  strcpy(broadcast_code_whitelist_[whitelist_count_], bd_code); /* copy the code to the array of codes*/
   ++whitelist_count_;
 
   return 0;

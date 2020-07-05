@@ -37,7 +37,7 @@
 #include "lds_lidar.h"
 
 /** Cmdline input broadcast code */
-static std::vector<std::string> cmdline_broadcast_code;
+static std::vector<std::string> cmdline_broadcast_code; /* will be updated in SetProgramOption parser*/
 
 /** Set the program options.
 * You can input the registered device broadcast code and decide whether to save the log file.
@@ -45,7 +45,7 @@ static std::vector<std::string> cmdline_broadcast_code;
 static int SetProgramOption(int argc, const char *argv[]) {
   apr_status_t rv;
   apr_pool_t *mp = NULL;
-  static const apr_getopt_option_t opt_option[] = {
+  static const apr_getopt_option_t opt_option[] = { /* defined in apr_getopt.h */
     /** Long-option, short-option, has-arg flag, description */
     { "code", 'c', 1, "Register device broadcast code" },
     { "log", 'l', 0, "Save the log file" },
@@ -79,7 +79,7 @@ static int SetProgramOption(int argc, const char *argv[]) {
         char *sn_list = (char *)malloc(sizeof(char)*(strlen(optarg) + 1));
         strncpy(sn_list, optarg, sizeof(char)*(strlen(optarg) + 1));
         char *sn_list_head = sn_list;
-        sn_list = strtok(sn_list, "&");
+        sn_list = strtok(sn_list, "&"); /* use '&' delimiter to seperate multiple broadcast_code */
         cmdline_broadcast_code.clear();
         while (sn_list) {
           cmdline_broadcast_code.push_back(sn_list);
@@ -124,13 +124,13 @@ static int SetProgramOption(int argc, const char *argv[]) {
 
 int main(int argc, const char *argv[]) {
 /** Set the program options. */
-  if (SetProgramOption(argc, argv)) {
+  if (SetProgramOption(argc, argv)) { /* parse the arguments */
     return 0;
   }
 
-  LdsLidar& read_lidar = LdsLidar::GetInstance();
+  LdsLidar& read_lidar = LdsLidar::GetInstance(); /* get an instance of LdsLidar */
 
-  int ret = read_lidar.InitLdsLidar(cmdline_broadcast_code);
+  int ret = read_lidar.InitLdsLidar(cmdline_broadcast_code); /* key registration of callbacks, or conversions all happens here, including device bd_code white list */
   if (!ret) {
     printf("Init lds lidar success!\n");
   } else {
@@ -145,6 +145,7 @@ int main(int argc, const char *argv[]) {
   sleep(100);
 #endif
 
+  /* unlike ros there is no main loop here, so I assume everything has to happen in this SDK-version of LdsLidar::InitLdsLidar */
   read_lidar.DeInitLdsLidar();
   printf("Livox lidar demo end!\n");
 

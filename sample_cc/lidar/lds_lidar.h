@@ -32,7 +32,7 @@
 #include <string>
 
 #include "livox_def.h"
-#include "livox_sdk.h"
+#include "livox_sdk.h" /* this is through which sdk is called */
 
 
 typedef enum {
@@ -81,7 +81,7 @@ class LdsLidar {
     return lds_lidar;
   }
 
-  int InitLdsLidar(std::vector<std::string>& broadcast_code_strs);
+  int InitLdsLidar(std::vector<std::string>& broadcast_code_strs); /* main function */
   int DeInitLdsLidar(void);
 
  private:
@@ -90,9 +90,9 @@ class LdsLidar {
   ~LdsLidar();
   LdsLidar& operator=(const LdsLidar&) = delete;
 
-  static void GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,\
+  static void GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,\ /* second level function */
                              uint32_t data_num, void *client_data);
-  static void OnDeviceBroadcast(const BroadcastDeviceInfo *info);
+  static void OnDeviceBroadcast(const BroadcastDeviceInfo *info); /* first level function */
   static void OnDeviceChange(const DeviceInfo *info, DeviceEvent type);
   static void StartSampleCb(livox_status status, uint8_t handle, uint8_t response, void *clent_data);
   static void StopSampleCb(livox_status status, uint8_t handle, uint8_t response, void *clent_data);
