@@ -38,7 +38,7 @@ class DataHandlerImpl;
 
 class DataHandler : public noncopyable {
  public:
-  typedef std::function<void(uint8_t handle, LivoxEthPacket *data, uint32_t data_num, void *client_data)> DataCallback;
+  typedef std::function<void(uint8_t handle, LivoxEthPacket *data, uint32_t data_num, void *client_data)> DataCallback; /* also defined in livox_sdk.h */
 
  public:
   DataHandler() : mem_pool_(NULL) {}

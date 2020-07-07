@@ -90,8 +90,8 @@ class LdsLidar {
   ~LdsLidar();
   LdsLidar& operator=(const LdsLidar&) = delete;
 
-  static void GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,\ /* second level function */
-                             uint32_t data_num, void *client_data);
+  static void GetLidarDataCb(uint8_t handle, LivoxEthPacket *data, \
+                             uint32_t data_num, void *client_data); /* second level function */
   static void OnDeviceBroadcast(const BroadcastDeviceInfo *info); /* first level function */
   static void OnDeviceChange(const DeviceInfo *info, DeviceEvent type);
   static void StartSampleCb(livox_status status, uint8_t handle, uint8_t response, void *clent_data);

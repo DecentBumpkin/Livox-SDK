@@ -80,6 +80,11 @@ void DataHandler::Uninit() {
   }
 }
 
+/**
+ * This is the lower level data conversion, see Livox-SDK Commuication Protocol Section 3.3 for more info
+ * 
+ * 
+ */
 void DataHandler::OnDataCallback(uint8_t handle, void *data, uint16_t size) {
   LivoxEthPacket *lidar_data = (LivoxEthPacket *)data;
   if (lidar_data == NULL) {
@@ -91,7 +96,7 @@ void DataHandler::OnDataCallback(uint8_t handle, void *data, uint16_t size) {
   DataCallback cb = callbacks_[handle];
   switch (lidar_data->data_type) {
     case kCartesian:
-      size = (size - kPrefixDataSize) / sizeof(LivoxRawPoint);
+      size = (size - kPrefixDataSize) / sizeof(LivoxRawPoint); /* data begins from the 18th byte, so substract kPrefixDataSize, which includes data_type, timestamp_type,etc*/
       break;
     case kSpherical:
       size = (size - kPrefixDataSize) / sizeof(LivoxSpherPoint);

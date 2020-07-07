@@ -79,7 +79,7 @@ void DeviceDiscovery::OnData(apr_socket_t *sock, void *) {
   uint32_t buf_size = 0;
   uint8_t *cache_buf = comm_port_->FetchCacheFreeSpace(&buf_size);
   apr_size_t size = buf_size;
-  apr_status_t rv = apr_socket_recvfrom(&addr, sock, 0, reinterpret_cast<char *>(cache_buf), &size);
+  apr_status_t rv = apr_socket_recvfrom(&addr, sock, 0, reinterpret_cast<char *>(cache_buf), &size); /* @Wei receive data from socket */
 
   comm_port_->UpdateCacheWrIdx(size);
   if (rv != APR_SUCCESS) {

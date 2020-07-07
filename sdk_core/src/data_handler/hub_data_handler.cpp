@@ -74,7 +74,7 @@ void HubDataHandlerImpl::OnData(apr_socket_t *, void *) {
     buf_.resize(kMaxBufferSize);
   }
   apr_size_t size = kMaxBufferSize;
-  apr_socket_recvfrom(&addr, sock_, 0, &buf_[0], &size);
+  apr_socket_recvfrom(&addr, sock_, 0, &buf_[0], &size); /* important receive data and set up callback for socket */
 
   if (handler_) {
     handler_->OnDataCallback(hub_info_.handle, &buf_[0], size);

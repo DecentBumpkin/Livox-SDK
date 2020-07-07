@@ -267,7 +267,7 @@ typedef union {
   HubErrorCode hub_error_code;        /**< Hub error code. */
 } ErrorMessage;
 
-/** Point cloud packet. */
+/** Point cloud packet. @Wei: Very Very important, data will be converted to corresponding type later in callback */
 typedef struct {
   uint8_t version;              /**< Packet protocol version. */
   uint8_t slot;                 /**< Slot number used for connecting LiDAR. */

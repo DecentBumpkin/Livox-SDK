@@ -58,7 +58,7 @@ void LidarDataHandlerImpl::Uninit() {
 }
 
 bool LidarDataHandlerImpl::AddDevice(const DeviceInfo &info) {
-  apr_socket_t *sock = util::CreateBindSocket(info.data_port, mem_pool_);
+  apr_socket_t *sock = util::CreateBindSocket(info.data_port, mem_pool_); /* very very important eth connection setup */
   if (sock == NULL) {
     return false;
   }
@@ -110,11 +110,12 @@ void LidarDataHandlerImpl::OnData(apr_socket_t *sock, void *client_data) {
     buf.reset(new char[kMaxBufferSize]);
   }
 
+/* @Wei: Important, receive from socket and set up callback for inbound data */
   apr_sockaddr_t addr;
   apr_size_t size = kMaxBufferSize;
   if (APR_SUCCESS == apr_socket_recvfrom(&addr, sock, 0, buf.get(), &size)) {
     if (handler_) {
-      handler_->OnDataCallback(handle, buf.get(), size);
+      handler_->OnDataCallback(handle, buf.get(), size); /* DataHandler::onDataCllback in data_handler.cpp */
     }
   }
 }

@@ -59,7 +59,7 @@ LdsLidar::LdsLidar() {
 LdsLidar::~LdsLidar() {
 }
 
-/* main top-level function, everything happens here, including such as callback registration and conversion */
+/* main paramount function, everything happens here, including such as callback registration and conversion */
 int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
 
   if (is_initialized_) {
@@ -67,7 +67,7 @@ int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
     return -1;
   }
 
-  if (!Init()) {
+  if (!Init()) {  /* very important, ethernet probably initialized here */
     Uninit();
     printf("Livox-SDK init fail!\n");
     return -1;
@@ -102,7 +102,7 @@ int LdsLidar::InitLdsLidar(std::vector<std::string>& broadcast_code_strs) {
   }
 
   /** Start livox sdk to receive lidar data */
-  if (!Start()) { /* livox_sdk.h */
+  if (!Start()) { /* livox_sdk.h, check this out, ethernet packet probably here also */
     Uninit();
     printf("Livox-SDK init fail!\n");
     return -1;
@@ -135,7 +135,9 @@ int LdsLidar::DeInitLdsLidar(void) {
 
 /** Static function in LdsLidar for callback or event process ------------------------------------*/
 
-/** Receiving point cloud data from Livox LiDAR. */
+/** Receiving point cloud data from Livox LiDAR. 
+ * here we directly get the LivoxEthPacket struct type as input, but how to generate LivoxEthPacket from socket? 
+*/
 void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
                               uint32_t data_num, void *client_data) {
   using namespace std;
@@ -147,9 +149,12 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
     return;
   }
 
+  if (lidar_this->data_recveive_count_[handle] < 1000) {
+    printf(" data_num: %u\n", data_num);
+  }
   if (eth_packet) {
     lidar_this->data_recveive_count_[handle] ++;
-    if (lidar_this->data_recveive_count_[handle] % 1000 == 0) {
+    if (lidar_this->data_recveive_count_[handle] == 1000) {
       printf("receive packet count %d %d\n", handle, lidar_this->data_recveive_count_[handle]);
 
       printf(" version: %u\n", data->version);
@@ -170,6 +175,7 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
         LivoxSpherPoint *p_point_data = (LivoxSpherPoint *)data->data;
       }else if ( data ->data_type == kExtendCartesian) {
         LivoxExtendRawPoint *p_point_data = (LivoxExtendRawPoint *)data->data;
+        p_point_data += 95; /* there are data_num points, in single return mode, 96 points*/
         printf("coords: %d %d %d\n",p_point_data->x, p_point_data->y, p_point_data->z); /* by default LivoxExtendRawPoint */
       }else if ( data ->data_type == kExtendSpherical) {
         LivoxExtendSpherPoint *p_point_data = (LivoxExtendSpherPoint *)data->data;
