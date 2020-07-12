@@ -175,7 +175,7 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
         LivoxSpherPoint *p_point_data = (LivoxSpherPoint *)data->data;
       }else if ( data ->data_type == kExtendCartesian) {
         LivoxExtendRawPoint *p_point_data = (LivoxExtendRawPoint *)data->data;
-        p_point_data += 95; /* there are data_num points, in single return mode, 96 points*/
+        p_point_data += 95; /* there are data_num points, in single return mode, 96 points, from +0 to +95 */
         printf("coords: %d %d %d\n",p_point_data->x, p_point_data->y, p_point_data->z); /* by default LivoxExtendRawPoint */
       }else if ( data ->data_type == kExtendSpherical) {
         LivoxExtendSpherPoint *p_point_data = (LivoxExtendSpherPoint *)data->data;

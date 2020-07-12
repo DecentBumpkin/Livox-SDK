@@ -7,7 +7,8 @@ LdsLidar::OnDeviceBroadcast ->  LdsLidar::GetLidarDataCb
 Why bd_list cannot be recognized?
 
 
-Update:
+Update 20200707
 
 ethernet socket received and callback setup in lidar_data_handler.cpp
 data_handler.cpp DataHandler::OnDataCallback process the raw data and call another callback LdsLidar::GetLidarDataCb defined in lds_lidar.cpp
+CRC checksum applied in sdk_protocol.*, see also third_party FastCRC
