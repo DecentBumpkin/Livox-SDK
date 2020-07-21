@@ -60,6 +60,7 @@ private:
   bool IsStarted() { return start_read_lvx_; }
 
   void ReadLvxFile();
+  void ShowLvxFile();
   // bool IsAllQueueEmpty();
   // bool IsAllQueueReadStop();
 
@@ -67,6 +68,7 @@ private:
   OutPacketBuffer packets_of_frame_;
   std::shared_ptr<LvxFileHandle> lvx_file_;
   std::shared_ptr<std::thread> t_read_lvx_;
+  std::shared_ptr<std::thread> t_show_lvx_; /* openGL visual thread */
   volatile bool start_read_lvx_;
 };
 
