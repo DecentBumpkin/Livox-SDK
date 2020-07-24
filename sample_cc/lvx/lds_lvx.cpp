@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <thread>
+#include <unistd.h> /*usleep*/
 
 #include "lvx_file.h"
 
@@ -176,14 +177,23 @@ void LdsLvx::ReadLvxFile() {
         uint64_t cur_timestamp = *((uint64_t *)(data->timestamp));
 
         if ( data ->data_type == kExtendCartesian) {
+
           LivoxExtendRawPoint *p_point_data = (LivoxExtendRawPoint *)data->data; /* length is 96 */
-          LivoxPointXyzrtl* dst_point = new LivoxPointXyzrtl[96];
-          uint8* point_base = reinterpret_cast<uint8*>(dst_point);
-          point_base = FillZeroPointXyzrtl( point_base, 96);
-          point_base = LivoxExtendRawPointToPxyzrtl(point_base, data ,lidars_[handle].extrinsic_parameter);
+          LivoxPointXyzrtl* dst_point = new LivoxPointXyzrtl[GetPointsPerPacket(data->data_type)];
+          // printf("%d %d %d\n",p_point_data[95].x, p_point_data[95].y, p_point_data[95].z);
+          dst_point = (LivoxPointXyzrtl*) FillZeroPointXyzrtl( (uint8_t*) dst_point, 96); /* points to the first element after the array */
+          dst_point -= GetPointsPerPacket(data->data_type); /* revert to first elem*/
+          dst_point = (LivoxPointXyzrtl*) LivoxExtendRawPointToPxyzrtl( (uint8_t*) dst_point, data ,lidars_[handle].extrinsic_parameter); /* point to first after end */
+          dst_point -= GetPointsPerPacket(data->data_type); /* revert to first elem */
+          // printf("%f %f %f\n",dst_point[95].x, dst_point[95].y, dst_point[95].z);
+          if(_scene->GLSceneReady_){
+            // glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+            // glBufferSubData(GL_ARRAY_BUFFER, 0, 96 * sizeof(LivoxPointXyzrtl), dst_point);
+            _scene->update(dst_point);
+          }
+          delete[] dst_point;
 
-        // glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(kExtendCartesian) * 96, p_point_data);
-
+          usleep(100);
 
         }else if ( data ->data_type == kImu) {
           LivoxImuPoint *p_point_data = (LivoxImuPoint *)data->data;
