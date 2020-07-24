@@ -23,7 +23,7 @@
 //
 
 #include "lds_lvx.h"
-
+#include "lds.h"
 #include <functional>
 #include <memory>
 #include <stdio.h>
@@ -35,7 +35,6 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <common/shader.hpp>
 
 namespace livox_ros {
 
@@ -62,6 +61,9 @@ LdsLvx::~LdsLvx() {
   }
   if (t_read_lvx_->joinable()) {
     t_read_lvx_->join();
+  }
+  if (t_show_lvx_->joinable()) {
+    t_show_lvx_->join();
   }
 }
 
@@ -128,10 +130,8 @@ int LdsLvx::InitLdsLvx(const char *lvx_path) {
     // InitQueue(&lidars_[i].imu_data, queue_size);
   }
 
-  t_read_lvx_ =
-      std::make_shared<std::thread>(std::bind(&LdsLvx::ReadLvxFile, this));
-  t_show_lvx_ =
-      std::make_shared<std::thread>(std::bind(&LdsLvx::ShowLvxFile, this));
+  t_read_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ReadLvxFile, this));
+  t_show_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ShowLvxFile, this));
   is_initialized_ = true;
 
   StartRead();
@@ -154,52 +154,39 @@ void LdsLvx::ReadLvxFile() {
       uint8_t *packet_base = packets_of_frame_.packet;
       uint32_t data_offset = 0;
       while (data_offset < data_size) {
-        LivoxEthPacket *eth_packet;
+        LivoxEthPacket *data;
         int32_t handle;
         uint8_t data_type;
         if (lvx_file_->GetFileVersion()) {
           LvxFilePacket *detail_packet =
               (LvxFilePacket *)&packet_base[data_offset];
-          eth_packet = (LivoxEthPacket *)(&detail_packet->version);
+          data = (LivoxEthPacket *)(&detail_packet->version);
           handle = detail_packet->device_index;
         } else {
           LvxFilePacketV0 *detail_packet =
               (LvxFilePacketV0 *)&packet_base[data_offset];
-          eth_packet = (LivoxEthPacket *)(&detail_packet->version);
+          data = (LivoxEthPacket *)(&detail_packet->version);
           handle = detail_packet->device_index;
         }
 
-        data_type = eth_packet->data_type;
+        data_type = data->data_type;
         /** Packet length + device index */
         data_offset += (GetEthPacketLen(data_type) + 1); 
-        if (data_type != kImu) {
-          printf("get non-Imu Data!\n");
-          LidarDevice *p_lidar = &lidars_[handle];
-          // LidarDataQueue *p_queue = &lidars_[handle].data;
-          if (p_lidar->raw_data_type != eth_packet->data_type) {
-            p_lidar->raw_data_type = eth_packet->data_type;
-            p_lidar->packet_interval = GetPacketInterval(eth_packet->data_type);
-            p_lidar->packet_interval_max = p_lidar->packet_interval * 1.8f;
-          }          
-          // if ((p_queue != nullptr) && (handle < lidar_count_)) {
-          //   while (QueueIsFull(p_queue)) {
-          //     std::this_thread::sleep_for(std::chrono::milliseconds(1));
-          //   }
-          //   QueuePushAny(p_queue, (uint8_t *)eth_packet,
-          //                GetEthPacketLen(data_type), 0,
-          //                GetPointsPerPacket(data_type));
-          // }
-        } else {
-          printf("get Imu Data!\n");
-          // LidarDataQueue *p_queue = &lidars_[handle].imu_data;
-          // if ((p_queue != nullptr) && (handle < lidar_count_)) {
-          //   while (QueueIsFull(p_queue)) {
-          //     std::this_thread::sleep_for(std::chrono::milliseconds(1));
-          //   }
-          //   QueuePushAny(p_queue, (uint8_t *)eth_packet,
-          //                GetEthPacketLen(data_type), 0,
-          //                GetPointsPerPacket(data_type));
-          // }
+
+        uint64_t cur_timestamp = *((uint64_t *)(data->timestamp));
+
+        if ( data ->data_type == kExtendCartesian) {
+          LivoxExtendRawPoint *p_point_data = (LivoxExtendRawPoint *)data->data; /* length is 96 */
+          LivoxPointXyzrtl* dst_point = new LivoxPointXyzrtl[96];
+          uint8* point_base = reinterpret_cast<uint8*>(dst_point);
+          point_base = FillZeroPointXyzrtl( point_base, 96);
+          point_base = LivoxExtendRawPointToPxyzrtl(point_base, data ,lidars_[handle].extrinsic_parameter);
+
+        // glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(kExtendCartesian) * 96, p_point_data);
+
+
+        }else if ( data ->data_type == kImu) {
+          LivoxImuPoint *p_point_data = (LivoxImuPoint *)data->data;
         }
       }
     } else {
@@ -217,129 +204,11 @@ void LdsLvx::ReadLvxFile() {
     }
   }
 
-  // int32_t wait_cnt = 10;
-  // while (!IsAllQueueEmpty()) {
-  //   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  //   if (IsAllQueueReadStop()) {
-  //     --wait_cnt;
-  //     if (wait_cnt <= 0) {
-  //       break;
-  //     }
-  //   }
-  // }
   RequestExit();
 }
 
 void LdsLvx::ShowLvxFile(){
-  using namespace glm;
-  GLFWwindow* window;
-	// Initialise GLFW
-	if( !glfwInit() )
-	{
-		fprintf( stderr, "Failed to initialize GLFW\n" );
-		getchar();
-		return;
-	}
-
-	glfwWindowHint(GLFW_SAMPLES, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	// Open a window and create its OpenGL context
-	window = glfwCreateWindow( 1024, 768, "Demo", NULL, NULL);
-	if( window == NULL ){
-		fprintf( stderr, "Failed to open GLFW window.\n" );
-		getchar();
-		glfwTerminate();
-		return;
-	}
-	glfwMakeContextCurrent(window);
-
-	// Initialize GLEW
-	glewExperimental = true; // Needed for core profile
-	if (glewInit() != GLEW_OK) {
-		fprintf(stderr, "Failed to initialize GLEW\n");
-		getchar();
-		glfwTerminate();
-		return;
-	}
-
-	// Ensure we can capture the escape key being pressed below
-	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-
-	// Dark blue background
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
-
-	// create a Vertex Array Object and set it as the current one 
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
-
-	// Create and compile our GLSL program from the shaders
-	GLuint programID = LoadShaders( "shader/SimpleVertexShader.vertexshader", "shader/SimpleFragmentShader.fragmentshader" );
-
-	// An array of 3 vectors which represents 3 vertices
-	static const GLfloat g_vertex_buffer_data[] = { 
-		-0.5f, -0.5f, 0.0f,
-		 0.5f, -0.5f, 0.0f,
-		 0.0f,  0.5f, 0.0f,
-	};
-
-	// This will identify our vertex buffer
-	GLuint vertexbuffer;
-	// Generate 1 buffer, put the resulting identifier in vertexbuffer
-	glGenBuffers(1, &vertexbuffer);
-	// The following commands will talk about our 'vertexbuffer' buffer
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	// Give our vertices to OpenGL.
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
-	do{
-
-		// Clear the screen
-		glClear( GL_COLOR_BUFFER_BIT );
-
-		// Use our shader
-		glUseProgram(programID);
-
-		// 1 st attribute buffer : vertices
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		glVertexAttribPointer(
-			0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-			3,                  // size
-			GL_FLOAT,           // type
-			GL_FALSE,           // normalized?
-			0,                  // stride
-			(void*)0            // array buffer offset
-		);
-
-		// Draw the triangle !
-		/* glBegin and friends are deprecated and removed from the newer versions (3.2 onward). */
-		glPointSize(10.0f); /* works */
-		glColor3f(1.0f,0.0f,0.0f); /* useless */
-		glDrawArrays(GL_POINTS, 0, 2); // 3 indices starting at 0 -> 1 triangle
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-
-		glDisableVertexAttribArray(0);
-
-		// Swap buffers
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-
-	} // Check if the ESC key was pressed or the window was closed
-	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
-		   glfwWindowShouldClose(window) == 0 );
-
-	// Cleanup VBO
-	glDeleteBuffers(1, &vertexbuffer);
-	glDeleteVertexArrays(1, &VertexArrayID);
-	glDeleteProgram(programID);
-
-	// Close OpenGL window and terminate GLFW
-	glfwTerminate();
+  _scene->init();
 }
 
 int LdsLvx::DeInitLdsLvx(void) {
@@ -354,29 +223,5 @@ int LdsLvx::DeInitLdsLvx(void) {
 
   return 0;
 }
-
-// bool LdsLvx::IsAllQueueEmpty() {
-//   for (int i = 0; i < lidar_count_; i++) {
-//     LidarDevice *p_lidar = &lidars_[i];
-//     if (!QueueIsEmpty(&p_lidar->data)) {
-//       return false;
-//     }
-//   }
-
-//   return true;
-// }
-
-// bool LdsLvx::IsAllQueueReadStop() {
-//   static uint32_t remain_size[kMaxSourceLidar];
-//   for (int i = 0; i < lidar_count_; i++) {
-//     LidarDevice *p_lidar = &lidars_[i];
-//     if (remain_size[i] != QueueIsEmpty(&p_lidar->data)) {
-//       remain_size[i] = QueueIsEmpty(&p_lidar->data);
-//       return false;
-//     }
-//   }
-
-//   return true;
-// }
 
 } // namespace livox_ros

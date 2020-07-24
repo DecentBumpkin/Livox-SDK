@@ -312,6 +312,10 @@ inline void RawPointConvert(LivoxPointXyzr *dst_point1,
   (dst_point2 + 1)->reflectivity = (float)raw_point->reflectivity2;
 }
 
+uint8_t *LivoxExtendRawPointToPxyzrtl(uint8_t *point_buf,
+                                      LivoxEthPacket *eth_packet,
+                                      ExtrinsicParameter &extrinsic);
+
 /**
  * Lidar data source abstract.
  */

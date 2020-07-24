@@ -12,12 +12,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/sample_cc/lvx/external/rpavli
 include(CreateLaunchers)
 include(MSVCMultipleProcessCompile) 
 
-if(INCLUDE_DISTRIB)
-	add_subdirectory(distrib)
-endif(INCLUDE_DISTRIB)
-
-
-
 include_directories(
     external/AntTweakBar-1.16/include/
     external/glfw-3.1.2/include/
@@ -49,8 +43,10 @@ add_executable(${DEMO_NAME}
     lds_lvx.cpp 
     lds.cpp 
     lvx_file.cpp
-	common/shader.cpp
-	common/shader.hpp
+	OpenGL/shader.cpp
+    OpenGL/camera.cpp
+    OpenGL/glscene.cpp
+    OpenGL/trackball.cpp
     shader/SimpleFragmentShader.fragmentshader
 	shader/SimpleVertexShader.vertexshader
 )
@@ -70,6 +66,5 @@ target_link_libraries(${DEMO_NAME}
 
 # Xcode and Visual working directories
 set_target_properties(${DEMO_NAME} PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-create_target_launcher(${DEMO_NAME} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 create_target_launcher(${DEMO_NAME} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 #create_default_target_launcher(${DEMO_NAME} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}") 

@@ -32,6 +32,7 @@
 
 #include "lds.h"
 #include "lvx_file.h"
+#include <OpenGL/glscene.hpp>
 
 namespace livox_ros {
 
@@ -70,6 +71,8 @@ private:
   std::shared_ptr<std::thread> t_read_lvx_;
   std::shared_ptr<std::thread> t_show_lvx_; /* openGL visual thread */
   volatile bool start_read_lvx_;
+
+  GLScene* _scene = new GLScene;
 };
 
 } // namespace livox_ros
