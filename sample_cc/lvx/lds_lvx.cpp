@@ -74,6 +74,10 @@ void LdsLvx::PrepareExit(void) {
 }
 
 int LdsLvx::InitLdsLvx(const char *lvx_path) {
+
+  _scene->init(); /* Wei init */
+
+  usleep(1e6);
   if (is_initialized_) {
     printf("Livox file data source is already inited!\n");
     return -1;
@@ -131,12 +135,12 @@ int LdsLvx::InitLdsLvx(const char *lvx_path) {
     // InitQueue(&lidars_[i].imu_data, queue_size);
   }
 
-  t_read_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ReadLvxFile, this));
-  t_show_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ShowLvxFile, this));
+  // t_read_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ReadLvxFile, this));
+  // t_show_lvx_ = std::make_shared<std::thread>(std::bind(&LdsLvx::ShowLvxFile, this));
   is_initialized_ = true;
 
   StartRead();
-
+  ReadLvxFile();
   return ret;
 }
 
@@ -186,14 +190,12 @@ void LdsLvx::ReadLvxFile() {
           dst_point = (LivoxPointXyzrtl*) LivoxExtendRawPointToPxyzrtl( (uint8_t*) dst_point, data ,lidars_[handle].extrinsic_parameter); /* point to first after end */
           dst_point -= GetPointsPerPacket(data->data_type); /* revert to first elem */
           // printf("%f %f %f\n",dst_point[95].x, dst_point[95].y, dst_point[95].z);
-          if(_scene->GLSceneReady_){
-            // glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-            // glBufferSubData(GL_ARRAY_BUFFER, 0, 96 * sizeof(LivoxPointXyzrtl), dst_point);
-            _scene->update(dst_point);
-          }
+          usleep(1000);
+          _scene->updatePointCloud(dst_point);
+          _scene->updateScreen();
           delete[] dst_point;
 
-          usleep(100);
+
 
         }else if ( data ->data_type == kImu) {
           LivoxImuPoint *p_point_data = (LivoxImuPoint *)data->data;
@@ -218,7 +220,7 @@ void LdsLvx::ReadLvxFile() {
 }
 
 void LdsLvx::ShowLvxFile(){
-  _scene->init();
+  _scene->updateScreen();
 }
 
 int LdsLvx::DeInitLdsLvx(void) {
